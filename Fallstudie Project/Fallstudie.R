@@ -1,6 +1,12 @@
+# Packages
+install.packages("packcircles")
+
 # Library laden
 library(lattice) 
 library(dplyr)
+library(packcircles)
+library(ggplot2)
+library(reshape2)
 
 # DataFrame laden
 
@@ -30,7 +36,7 @@ durchschnitt_abfall_provinz <- waste_management %>%
 
 count_dist_dimesnion <- function(df, dimension) {
   df %>% 
-    summarise(anzahl_dist = n_distinct(dimension))
+    summarise(dist_dimension = n_distinct(dimension))
 }
 
 count_dist_dimesnion(waste_management, waste_management$Region)
@@ -38,3 +44,27 @@ count_dist_dimesnion(waste_management, waste_management$Provinz)
 count_dist_dimesnion(waste_management, waste_management$Gemeinde)
 
 # Visualisieren
+
+barplot(durchschnitt_abfall_provinz$Gesamt~durchschnitt_abfall_provinz$Provinz,
+        ylab = "Gesamt Abfälle pro Provinz",
+        xlab = "Provinz")
+
+#-- 
+# Circle Plot
+pck <- circleProgressiveLayout(durchschnitt_abfall_provinz$Gesamt, sizetype = "area")
+head(pck)
+
+mydata <- cbind(durchschnitt_abfall_provinz, pck)
+head(mydata)
+
+myplotcord <- circleLayoutVertices(pck)
+
+p1 <- ggplot()
+p1 <- p1 + geom_polygon(data = myplotcord, aes(x,y, group = id, fill = as.factor(id)), show.legend = F)
+p1 <- p1 + geom_text(data = mydata, aes(x,y, size = Gesamt, label = paste0(Provinz)))
+p1 <- p1 + coord_equal()
+p1 <- p1 + theme_void()
+p1 <- p1 + theme(legend.position = "none")
+p1 <- p1 + labs(title = "Durchschnittliche Abfallmenge pro Provinz")
+p1
+#--
