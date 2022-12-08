@@ -71,8 +71,10 @@ exclude_chr_row <- function(df) {
   return(df)
 }
 ######### In function verpacken
-waste_management <- waste_management %>% 
-  filter(complete.cases(.))
+exclude_chr_row <- function(df) {
+  df %>% 
+    filter(complete.cases(.))
+}
 #########
 
 
@@ -122,7 +124,7 @@ circlePlot <- function(df, column, label){
   p1
 }
 
-circlePlot(durchschnitt_abfall_provinz, "Unsortiert", "Provinz")
+circlePlot(durchschnitt_abfall_provinz, "Gesamt", "Provinz")
   
 #--
 
