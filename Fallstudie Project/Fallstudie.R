@@ -30,15 +30,16 @@ table(waste_management$Provinz)
 ----------------------
 # NA bearbeiten
 ----------------------
-
-for (i in 1:ncol(waste_management)) {
-  if (is.numeric(waste_management[[i]])) {
-    #print(mean(is.na(waste_management[[i]])))
-    print(paste0(colnames(waste_management[i]),": ", 
-                 round(mean(is.na(waste_management[i])),3)))
+percent_na <- function(df) {
+  for (i in 1:ncol(df)) {
+    if (is.numeric(df[[i]])) {
+      print(paste0(colnames(df[i]),": ", 
+                   round(mean(is.na(df[i])),3)))
+    }
   }
 }
 
+percent_na(waste_management)
 
 exclude_na <- function(df) {
   for (i in 1:ncol(waste_management)) {
@@ -57,8 +58,22 @@ waste_management <- exclude_na(waste_management)
 
 anyNA(waste_management)
 summary(waste_management)
+mean(is.na(waste_management$Gemeinde))
 
-#
+exclude_chr_row <- function(df) {
+  for (i in 1:ncol(df)) {
+    for (j in 1:length(df[[i]])) {
+      if (is.na(df[j,i])) {
+        df[j,] <- df[-j,]
+      }
+    }
+  }
+  return(df)
+}
+######### In function verpacken
+waste_management <- waste_management %>% 
+  filter(complete.cases(.))
+#########
 
 
 durchschnitt_abfall_provinz <- waste_management %>% 
@@ -73,36 +88,42 @@ durchschnitt_abfall_provinz <- waste_management %>%
 # Torino mit Abstand höchsten Quoten, obwohl nicht höchste Bevölkerung
 
 
-count_dist_dimesnion <- function(df, dimension) {
+count_dist_dimesnion <- function(df, dimension_in_quotation_marks) {
   df %>% 
-    summarise(dist_dimension = n_distinct(dimension))
+    summarise(dist_dimension = n_distinct(df[[dimension_in_quotation_marks]]))
 }
 
-count_dist_dimesnion(waste_management, waste_management$Region)
-count_dist_dimesnion(waste_management, waste_management$Provinz)
-count_dist_dimesnion(waste_management, waste_management$Gemeinde)
+count_dist_dimesnion(waste_management, "Region")
+count_dist_dimesnion(waste_management, "Provinz")
+count_dist_dimesnion(waste_management, "Gemeinde")
 
 # Visualisieren
 
 #-- 
 # Circle Plot
-pck <- circleProgressiveLayout(durchschnitt_abfall_provinz$Gesamt, sizetype = "area")
+circlePlot <- function(df, column, label){
+  
+  pck <- circleProgressiveLayout(df[[column]], sizetype = "area")
+  
+  mydata <- cbind(df, pck)
+  
+  myplotcord <- circleLayoutVertices(pck)
+  
+  p1 <- ggplot() + 
+    geom_polygon(data = myplotcord, 
+                 aes(x,y, group = id, 
+                     fill = as.factor(id))) +
+    geom_text(data = mydata, aes(x,y, size = df[[column]], 
+                                 label = paste0(df[[label]]))) +
+    coord_equal() +
+    theme_void() +
+    theme(legend.position = "none") +
+    labs(title = "Durchschnittliche Abfallmenge pro Provinz")
+  p1
+}
 
-mydata <- cbind(durchschnitt_abfall_provinz, pck)
-
-myplotcord <- circleLayoutVertices(pck)
-
-p1 <- ggplot()
-p1 <- p1 + geom_polygon(data = myplotcord, 
-                        aes(x,y, group = id, 
-                            fill = as.factor(id)))
-p1 <- p1 + geom_text(data = mydata, aes(x,y, size = Gesamt, 
-                                        label = paste0(Provinz)))
-p1 <- p1 + coord_equal()
-p1 <- p1 + theme_void()
-p1 <- p1 + theme(legend.position = "none")
-p1 <- p1 + labs(title = "Durchschnittliche Abfallmenge pro Provinz")
-p1
+circlePlot(durchschnitt_abfall_provinz, "Unsortiert", "Provinz")
+  
 #--
 
 
@@ -142,9 +163,16 @@ hka_ww_management <- prcomp(waste_management_numeric,
                             rank. = 10)
 hka_ww_management
 
+#
+# as.data.frage(PC$x[])
+# t(as.matrix(PC$rotation[])) + corrplot
+#
+
 
 # Anteil erklärter Varianz
 barplot(hka_ww_management$sdev^2, names.arg = paste0("HK",1:31))
-#abline(h = 0.75, col = "red")
+abline(h = 0.75, col = "red")
 cumsum(hka_ww_management$sdev^2/sum(hka_ww_management$sdev^2))
 
+# Factoranalyse
+# 
