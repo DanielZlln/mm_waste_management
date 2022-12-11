@@ -2,6 +2,7 @@
 install.packages("packcircles")
 install.packages("corrgram")
 install.packages("corrplot")
+install.packages("GPArotation")
 
 # Library laden
 library(lattice) 
@@ -11,6 +12,10 @@ library(ggplot2)
 library(reshape2)
 library(corrgram)
 library(corrplot)
+library(FactoMineR)
+library(factoextra)
+library(psych)
+library(GPArotation)
 
 # DataFrame laden
 
@@ -70,12 +75,14 @@ exclude_chr_row <- function(df) {
   }
   return(df)
 }
-######### In function verpacken
+
 exclude_chr_row <- function(df) {
   df %>% 
     filter(complete.cases(.))
 }
-#########
+
+
+waste_management <- exclude_chr_row(waste_management)
 
 
 durchschnitt_abfall_provinz <- waste_management %>% 
@@ -176,5 +183,39 @@ barplot(hka_ww_management$sdev^2, names.arg = paste0("HK",1:31))
 abline(h = 0.75, col = "red")
 cumsum(hka_ww_management$sdev^2/sum(hka_ww_management$sdev^2))
 
-# Factoranalyse
-# 
+# Biplot
+biplot(hka_ww_management)
+
+# Gesamtvarianz, die von jeder Hauptkomponente erklärt wird (Nele) 
+var_explained <- round(hka_ww_management$sdev^2/sum(hka_ww_management$sdev^2), 2) 
+var_explained
+
+#### Factoranalyse
+
+fa_waste_management <- factanal(waste_management_numeric, 
+                         factors = 10,
+                         scores = "Bartlett",
+                         rotation = "none")
+fa_waste_management
+
+# Bei 10 Factors nur 58% Cululative Var
+
+fa_rotation <- function(df, factor, fa_rotation) {
+  fa_df <- factanal(df, 
+                    factors = factor,
+                    scores = "Bartlett",
+                    rotation = fa_rotation)
+  return(fa_df)
+}
+fa_promax <- fa_rotation(waste_management_numeric, 10, "promax")
+
+# Bei 10 Factors und Rotation Promax sind es 62% Cumulative Var
+
+biplot(y = fa_promax$loadings[,1:2], 
+       x = fa_promax$scores[,1:2])
+
+# Zu viel Varianz geht verloren bei gleicher Anzahl an Variablen -> weiter mit HK
+
+### Clusteranalyse
+
+
