@@ -4,6 +4,7 @@
 # install.packages("corrplot")
 # install.packages("GPArotation")
 # install.packages("nFactors")
+#install.packages("sass")
 
 # Library laden
 library(lattice) 
@@ -158,10 +159,11 @@ biplot(y = fa_promax$loadings[,1:2],
 
 
 ### Clusteranalyse
-distance <- dist(scale(waste_management_numeric, 
+distance <- dist(scale(new_waste_management, 
                 center = TRUE, 
                 scale = TRUE),
-          method = "manhattan")
+          method = "euclidian",
+          p = 2)
 
 
 # Hierarchische Clusteranalyse
@@ -171,10 +173,9 @@ h <- hclust(distance, method = "ward.D2")
 plot(h)
 
 # Cluster im Dendogramm makieren
-rect.hclust(h, k=8, border = "red")
+rect.hclust(h, k=6, border = "red")
 
 # Ermitteln der Clusterzugehörigkeit
-?cutree
 cl <- cutree(h, k = 8)
 waste_management$cluster <- cl
 
@@ -187,5 +188,11 @@ waste_management %>%
   filter(cluster == 8) %>% 
   select(everything())
 
-# Beschreiben
-describeBy(waste_management[5:36], group = waste_management$cluster)
+waste_management <- waste_management %>% 
+  filter(cluster != 8) %>% 
+  select(everything())
+
+# Profiling
+head(waste_management)
+
+describeBy(waste_management[5:7], group = waste_management$cluster)
