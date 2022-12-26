@@ -1,9 +1,9 @@
 # Packages
-install.packages("packcircles")
-install.packages("corrgram")
-install.packages("corrplot")
-install.packages("GPArotation")
-install.packages("nFactors")
+# install.packages("packcircles")
+# install.packages("corrgram")
+# install.packages("corrplot")
+# install.packages("GPArotation")
+# install.packages("nFactors")
 
 # Library laden
 library(lattice) 
@@ -30,7 +30,6 @@ load("waste_management.RData")
 
 summary(waste_management)
 # Mehrere Spalten enthalten NA
-View(waste_management)
 str(waste_management) # Küstengemeinde Ja/Nein?
 sum(waste_management[1,26:29]) # Spalten zusammen ergeben 100%
 
@@ -119,7 +118,7 @@ hka_ww_management
 
 # Anteil erklärter Varianz
 barplot(hka_ww_management$sdev^2, names.arg = paste0("HK",1:31))
-abline(h = 0.75, col = "red")
+abline(h = 0.70, col = "red")
 cumsum(hka_ww_management$sdev^2/sum(hka_ww_management$sdev^2))
 
 # Biplot
@@ -158,28 +157,35 @@ biplot(y = fa_promax$loadings[,1:2],
        x = fa_promax$scores[,1:2])
 
 
-########
-# nfactors(waste_management_numeric,fm="mle")
-# 
-# waste_c <- waste_management_numeric[complete.cases(waste_management_numeric),]
-# 
-# ev <- eigen(cor(waste_c))
-# ap <- parallel(subject = nrow(waste_c),
-#                var = ncol(waste_c),
-#                rep = 100,
-#                cent = .05)
-# nS <- nScree(x = ev$values,
-#              aparallel = ap$eigen$qevpea)
-# plotnScree(nS)
-# 
-# fa.parallel(waste_management_numeric)
-# ?screeplot
-# ?KMO
-# KMO(waste_management_numeric)
-########
-# Zu viel Varianz geht verloren bei gleicher Anzahl an Variablen -> weiter mit HK
-
 ### Clusteranalyse
+distance <- dist(scale(waste_management_numeric, 
+                center = TRUE, 
+                scale = TRUE),
+          method = "manhattan")
 
 
+# Hierarchische Clusteranalyse
+h <- hclust(distance, method = "ward.D2")
 
+# Dendrogramm
+plot(h)
+
+# Cluster im Dendogramm makieren
+rect.hclust(h, k=8, border = "red")
+
+# Ermitteln der Clusterzugehörigkeit
+?cutree
+cl <- cutree(h, k = 8)
+waste_management$cluster <- cl
+
+
+waste_management %>% 
+  group_by(cluster) %>% 
+  summarise(anzahl = n())
+
+waste_management %>% 
+  filter(cluster == 8) %>% 
+  select(everything())
+
+# Beschreiben
+describeBy(waste_management[5:36], group = waste_management$cluster)
