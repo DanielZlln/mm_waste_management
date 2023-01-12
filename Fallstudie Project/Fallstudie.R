@@ -545,40 +545,70 @@ head(waste_management)
 
 
 # Cluster nach Verwendung vergleichen
-describeBy(waste_management[26:29], 
-           group = waste_management$cluster)
+describeBy(waste_management_dist[5:7], 
+           group = waste_management_dist$cluster)
 
-describeBy(waste_management[17:25], 
-           group = waste_management$cluster)
 
-describeBy(waste_management[13:15], 
-           group = waste_management$cluster)
+# Verwendung betrachten
+describeBy(waste_management_dist[26:29], 
+           group = waste_management_dist$cluster)
 
-describeBy(waste_management[5:7], 
-           group = waste_management$cluster)
-
-waste_verwendung <- waste_management %>% 
+waste_verwendung <- waste_management_dist %>% 
   select(26:29, 37)
 
-df_verwendung <- pivot_longer(waste_verwendung, -cluster, 
-                              names_to="variable", values_to="value")
+plot_groups(waste_verwendung)
 
-ggplot(df_verwendung,aes(x = cluster,y = value)) + 
-  geom_bar(aes(fill = variable),stat = "identity",position = "dodge") 
+# Sort betrachten
+describeBy(waste_management_dist[17:25], 
+           group = waste_management_dist$cluster)
 
+waste_sort <- waste_management_dist %>% 
+  select(17:25, 37)
+
+plot_groups(waste_sort)
+
+
+# Abfaelle
+describeBy(waste_management_dist[13:15], 
+           group = waste_management_dist$cluster)
+
+waste_abfaelle <- waste_management_dist %>% 
+  select(13:15, 37)
+
+plot_groups(waste_abfaelle)
+
+# 
 
 pdf("mean_cluster.pdf", width = 8.5, height = 6)
-for (i in 1:ncol(waste_management)) {
-  if (is.numeric(waste_management[,i])) {
-    plot <- ggplot(waste_management,
-                   aes(y = waste_management[,i],
+for (i in 1:ncol(waste_management_dist)) {
+  if (is.numeric(waste_management_dist[,i])) {
+    plot <- ggplot(waste_management_dist,
+                   aes(y = waste_management_dist[,i],
                        x = cluster)) +
       geom_bar(aes(fill = cluster),stat = "summary",position = "dodge",
                fun = "mean") +
-      labs(y = names(waste_management)[i])
+      labs(y = names(waste_management_dist)[i])
     
     print(plot)
   }
 }
 dev.off()
 
+waste_management_prof <- waste_management_numeric
+for (i in 2:8) {
+  waste_management_prof$cluster <- cutree(h,k = i)
+  waste_profiling <- 
+    waste_management_prof %>% 
+    group_by(cluster) %>% 
+    summarise(mean)
+  waste_profiling$ncluster <- i
+  waste_profiling$size <- table(waste_management_prof$cluster)
+  
+  if (i == 2) {
+    waste_profiling_final <- waste_profiling
+  } else {
+    waste_profiling_final <- waste_profiling_final %>% 
+      rows_append(waste_profiling)
+  }
+}
+rlang::last_error()

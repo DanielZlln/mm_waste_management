@@ -131,6 +131,33 @@ all_distance_daisy <- function(df,metric_dist, metrics,fusio_method,kluster) {
   
 }
 
+plot_groups <- function(df) {
+  list_agg <- c("mean", "sum", "median", "min", "max")
+  
+  for (i in 1:length(list_agg)) {
+    if(list_agg[i] == "mean"){
+      df_agg <- df %>% group_by(cluster) %>%  summarise_all(mean)
+    } else if (list_agg[i] == "sum"){
+      df_agg <- df %>% group_by(cluster) %>%  summarise_all(sum)
+    } else if(list_agg[i] == "median"){
+      df_agg <- df %>% group_by(cluster) %>%  summarise_all(median)
+    } else if(list_agg[i] == "min"){
+      df_agg <- df %>% group_by(cluster) %>%  summarise_all(min)
+    } else if(list_agg[i] == "max"){
+      df_agg <- df %>% group_by(cluster) %>%  summarise_all(max)
+    }
+    
+    df_plot <- pivot_longer(df_agg, -cluster, 
+                            names_to="variable", values_to="value")
+    
+    pgg <-  ggplot(df_plot,aes(x = cluster,y = value)) + 
+      geom_bar(aes(fill = variable),stat = "identity",position = "dodge") +
+      ggtitle(paste0(list_agg[i], " per cluster"))
+    
+    print(pgg)
+  }
+}
+
 
 # fix the functions
 # fviz_nbclust <- function (x, FUNcluster = NULL, method = c("silhouette", "wss", 
