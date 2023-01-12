@@ -8,11 +8,14 @@
 # devtools::install_github("agstn/dataxray")
 # install.packages("correlationfunnel")
 # install.packages("NbClust")
-
+# install.packages("flexclust")
 
 # Library laden
+library(flexclust)
+library(doMC)
 library(NbClust)
 library(lattice) 
+library(cluster)
 library(dplyr)
 library(tidyr)
 library(packcircles)
@@ -31,6 +34,8 @@ tidymodels_prefer()
 
 library(dataxray)
 library(correlationfunnel)
+
+registerDoMC(cores = 4)
 
 # Source laden um Funktionen aufzurufen
 source("functions.R")
@@ -299,6 +304,7 @@ abline(v = 10, col = "red")
 abline(h = 0.812, col = "red")
 # mit diesem Dataframe in die Clusteranalyse 
 # bei einer Auswahl von 10 Hauptkomponenten 
+# vielleicht nur 9?
 new_waste_management <- as.data.frame(hka_ww_management$x[,1:10])
 new_waste_management
 
@@ -356,7 +362,7 @@ for (i in 1:length(methods_dist)) {
 
 dev.off()
 
-all_distance(new_waste_management, "manhattan", "ward.D2", 9)
+all_distance(new_waste_management, "manhattan", "ward.D2", 8)
 
 # Entscheidung feur Distanzberechnung nach "manhatten"
 distance <- dist(scale(new_waste_management, 
@@ -373,13 +379,14 @@ distance <- dist(scale(new_waste_management,
 h <- hclust(distance, method = "ward.D2")
 
 # fuer jede Boebachtung Clusterzugehoerigkeit angeben
-cl <- cutree(h, k = 5)
+cl <- cutree(h, k = 8)
 
 # Cluster an den Datensatz anfuegen
-waste_management$cluster <- cl
+waste_management_dist <- waste_management
+waste_management_dist$cluster <- cl
 
 # Anzahl Beobachtungen pro Cluster 
-waste_management %>% 
+waste_management_dist %>% 
   group_by(cluster) %>% 
   summarise(anzahl = n())
 
@@ -428,12 +435,14 @@ dia_agnes <- agnes(dia_dist, diss = T,
                    stand = T, 
                    method = "ward")
 
-c_diasy <- cutree(dia_agnes, k = 10)
+c_diasy <- cutree(dia_agnes, k = 8)
 
-waste_management$cluster_diasy <- c_diasy
+waste_management_daisy <- waste_management
 
-waste_management %>% 
-  group_by(cluster_diasy) %>% 
+waste_management_daisy$cluster <- c_diasy
+
+waste_management_daisy %>% 
+  group_by(cluster) %>% 
   summarise(anzahl = n())
 
 #
@@ -445,11 +454,11 @@ fviz_nbclust(new_waste_management, kmeans, method = "wss")
 gap_stat <- clusGap(new_waste_management,
                     FUN = kmeans,
                     nstart = 25,
-                    K.max = 10,
-                    B = 50)
-
+                    K.max = 20,
+                    B = 50) # 500 is recommendet, but to long
+warnings()
 # perform clustering, B = 500 is recommended
-hcluster = clusGap(new_waste_management, FUN = hcut, K.max = 7, B = 500)
+hcluster = clusGap(new_waste_management, FUN = hcut, K.max = 20, B = 50)
 
 # extract results
 dat <- data.table(hcluster$Tab)
@@ -463,11 +472,10 @@ viz_gap <- ggplot(dat, aes(k, gap)) + geom_line() + geom_point(size = 3) +
   theme(plot.title = element_text(size = 16, hjust = 0.5, face = "bold"),
         axis.title = element_text(size = 12, face = "bold"))
 viz_gap
+# Optimal 4?
 
 # Plot
 fviz_gap_stat(gap_stat)
-
-km <- kmeans(scale(waste_management_numeric), centers = 3, nstart = 10)
 
 k_erg <- data.frame(k = 1:20,
                     totss = 0,
@@ -484,6 +492,8 @@ for (i in 1:20) {
 
 k_erg
 
+km <- kmeans(scale(waste_management_numeric), centers = 4, nstart = 10)
+
 # Plot WithinSS
 plot(k_erg$k,
      k_erg$withinss,
@@ -499,33 +509,37 @@ plot(k_erg$k,
      ylab = "Erklärte Varianz")
 
 # perform clustering, B = 500 is recommended
-hcluster = clusGap(new_waste_management, FUN = hcut, K.max = 7, B = 500)
+# hcluster = clusGap(new_waste_management, FUN = hcut, K.max = 7, B = 500)
+# 
+# # extract results
+# dat <- data.table(hcluster$Tab)
+# dat[, k := .I]
+# 
+# # visualize gap statistic
+# viz_gap <- ggplot(dat, aes(k, gap)) + geom_line() + geom_point(size = 3) +
+#   geom_errorbar(aes(ymax = gap + SE.sim, ymin = gap - SE.sim), width = 0.25) +
+#   ggtitle("Clustering Results") +
+#   labs(x = "Number of Clusters", y = "Gap Statistic") +
+#   theme(plot.title = element_text(size = 16, hjust = 0.5, face = "bold"),
+#         axis.title = element_text(size = 12, face = "bold"))
+# viz_gap
+# 
+# km <- kmeans(scale(waste_management_numeric),
+#              centers = 4,
+#              nstart = 10,
+#              iter.max = 20)
 
-# extract results
-dat <- data.table(hcluster$Tab)
-dat[, k := .I]
+# zwischenschritt um cluster an normalen datensatz zu hängen
+waste_management_kmeans <- waste_management
+cluster_kmeans <- km$cluster
+waste_management_kmeans$cluster <- cluster_kmeans
 
-# visualize gap statistic
-viz_gap <- ggplot(dat, aes(k, gap)) + geom_line() + geom_point(size = 3) +
-  geom_errorbar(aes(ymax = gap + SE.sim, ymin = gap - SE.sim), width = 0.25) +
-  ggtitle("Clustering Results") +
-  labs(x = "Number of Clusters", y = "Gap Statistic") +
-  theme(plot.title = element_text(size = 16, hjust = 0.5, face = "bold"),
-        axis.title = element_text(size = 12, face = "bold"))
-viz_gap
+waste_management_kmeans %>% 
+  group_by(cluster) %>% 
+  summarise_all(mean)
 
-km <- kmeans(scale(waste_management_numeric),
-             centers = 4,
-             nstart = 10,
-             iter.max = 20)
-
-waste_management$cluster_km <- km$cluster
-
-waste_management %>% 
-  group_by(cluster_km) %>% 
-  summarise_all(mean) %>% 
-  print(width = Inf)
-
+# k-medoids
+#------------------------------------------------------------------------------
 # Profiling
 head(waste_management)
 
