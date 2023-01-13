@@ -577,7 +577,14 @@ waste_abfaelle <- waste_management_dist %>%
 
 plot_groups(waste_abfaelle)
 
-# 
+# Geographie
+describeBy(waste_management_dist[5:8],
+           group = waste_management_dist$cluster)
+
+waste_geo <- waste_management_dist %>% 
+  select(5:8, 37)
+
+plot_groups(waste_geo)
 
 pdf("mean_cluster.pdf", width = 8.5, height = 6)
 for (i in 1:ncol(waste_management_dist)) {
