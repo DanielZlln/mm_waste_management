@@ -1,4 +1,4 @@
-# Packages
+# Packages laden
 # install.packages("packcircles")
 # install.packages("corrgram")
 # install.packages("corrplot")
@@ -28,14 +28,12 @@ library(FactoMineR)
 library(factoextra)
 library(psych)
 library(GPArotation)
+library(dataxray)
+library(correlationfunnel)
 library(nFactors)
 library(tidymodels)
 tidymodels_prefer()
 
-library(dataxray)
-library(correlationfunnel)
-
-registerDoMC(cores = 4)
 
 # Source laden um Funktionen aufzurufen
 source("functions.R")
@@ -43,11 +41,15 @@ source("functions.R")
 # Dataframe laden
 load("waste_management.RData")
 
+#
+#------------------------------------------------------------------------
+#
+
 # Überblick über die Daten
 summary(waste_management)
 
 # Mehrere Spalten enthalten NA
-str(waste_management) # Küstengemeinde Ja/Nein?
+str(waste_management)
 
 # Datensatz anschauen 
 View(waste_management)
@@ -80,8 +82,8 @@ waste_management %>%
                              Sort_Textil,Sort_Rest, na.rm = T),
             Sortierungsgrad)
 
-# NA 0 oder der Wert fehlt und dann mittelwert bilden und 
-# Sortierungsgrad löschen
+# Sortierungsgrad ergibt sich aus den Werten die da sind
+# durch 0 ersetzten oder mean?
 
 # Haben alle nomialen Spalten nur die richtigen ausprägungen?
 table(waste_management[,9])
@@ -148,17 +150,22 @@ durchschnitt_abfall_provinz <- waste_management %>%
     Gesamt = round(mean(Abfaelle_gesamt),1),
     Sortiert = round(mean(Abfaelle_sortiert),1),
     Unsortiert = round(mean(Abfaelle_unsortiert),1),
-    Sortierungsgrad = round(mean(Sortierungsgrad),1)) %>% 
+    Sortierungsgrad = round(mean(Sortierungsgrad),1),
+    Kosten_Basis = round(mean(Kosten_Basis),1)) %>% 
   arrange(desc(Gesamt))
 
-# Ergebnis: Torino mit Abstand hoechsten Quoten, obwohl nicht hoechste Bevölkerung
+# Circle Plot erstellen
+circlePlot(durchschnitt_abfall_provinz, "Kosten_Basis", "Provinz",
+           "Kosten pro Provinz")
 
+# Ergebnis: Torino mit Abstand hoechsten Quoten beim Abfall, 
+# obwohl nicht hoechste Bevoelkerung (mittelwert auf nur 1 Stadt?)
+# Kosten Basis in etwa gleich bei allen Provinzen
+
+# Ausgabe von distinct Auspraegungen 
 count_dist_dimesnion(waste_management, "Region")
 count_dist_dimesnion(waste_management, "Provinz")
 count_dist_dimesnion(waste_management, "Gemeinde")
-
-# Circle Plot erstellen
-circlePlot(durchschnitt_abfall_provinz, "Gesamt", "Provinz")
 
 
 # welche Region hat die groeßte Bevoelkerung?
@@ -171,7 +178,7 @@ region_bev$Region <- as.factor(region_bev$Region)
 
 # plot erstellen 
 barplot(region_bev$summe_bev~region_bev$Region, xlab="Region", 
-        ylab= "Bevölkerunganzahl", main= "Region nach Bevölkerungszahl", 
+        ylab= "Bevoelkerunganzahl", main= "Region nach Bevoelkerungszahl", 
         col =c(1,1,1,1,1,1,1,1,2,1,1,1,1,1,1,1,1,1,1,1))
 
 # welche Region produziert den meisten Muell?
@@ -196,15 +203,15 @@ barplot(anteil_muell$summe_abf~anteil_muell$Region, xlab="Region",
 
 # Eigenschaften der Stadt als factor
 waste_management <- waste_management %>% 
-  mutate_at(vars(Inselgemeinde:Urbanisierungsgrad), as.factor)
+  mutate_at(vars(Inselgemeinde:Geologischer_Indikator), as.factor)
 
-# Datensatz nur zu gebrauchen mit numerischen Werten 
+# Neuen data.frame mit numerischen Werte
 waste_management_numeric <- waste_management[sapply
                                              (waste_management, 
                                                is.numeric)]
 
 # Korrelationsmatrix
-# kontrolieren welche spalten raus koennen wenn zu starke korrelation
+# kontrollieren welche spalten raus koennen wenn zu starke korrelation
 cor_matrix <- cor(waste_management_numeric)
 
 # Visualisierung der Korrelationsmatrix
@@ -230,23 +237,21 @@ corrplot(cor_matrix, order = "hclust")
 str(waste_management_numeric)
 
 # Indikator muss 1,2,3 sein, ist der nicht mehr wenn durch mean ersetzt wird
-table(waste_management_numeric[,"Geologischer_Indikator"])
-waste_management_numeric$Geologischer_Indikator <- 
-  round(waste_management_numeric$Geologischer_Indikator,0)
-table(waste_management_numeric[,"Geologischer_Indikator"])
-
-table(waste_management[,"Geologischer_Indikator"])
-waste_management$Geologischer_Indikator <- 
-  round(waste_management$Geologischer_Indikator,0)
-table(waste_management_numeric[,"Geologischer_Indikator"])
+# table(waste_management_numeric[,"Geologischer_Indikator"])
+# waste_management_numeric$Geologischer_Indikator <- 
+#   round(waste_management_numeric$Geologischer_Indikator,0)
+# table(waste_management_numeric[,"Geologischer_Indikator"])
+# 
+# table(waste_management[,"Geologischer_Indikator"])
+# waste_management$Geologischer_Indikator <- 
+#   round(waste_management$Geologischer_Indikator,0)
+# table(waste_management_numeric[,"Geologischer_Indikator"])
 
 table(waste_management[,"Urbanisierungsgrad"])
 table(waste_management[,"Kuestengemeinde"])
 table(waste_management[,"Inselgemeinde"])
-
-#----------------------
-# Deskriptive Statistik
-#----------------------
+table(waste_management[, "Geologischer_Indikator"]) 
+# Spaeter aendern, durch mittelwert jetzt unlogische Werte
 
 boxplot(waste_management_numeric)
 
@@ -264,7 +269,7 @@ hka_ww_management
 
 
 # Anteil erklaerter Varianz
-barplot(hka_ww_management$sdev^2, names.arg = paste0("HK",1:20))
+barplot(hka_ww_management$sdev^2, names.arg = paste0("HK",1:19))
 
 cumsum(hka_ww_management$sdev^2/sum(hka_ww_management$sdev^2))
 
@@ -298,12 +303,13 @@ dev.off()
 
 
 # Gesamtvarianz, die von jeder Hauptkomponente erklärt wird 
-var_explained <- round(hka_ww_management$sdev^2/sum(hka_ww_management$sdev^2), 2) 
+var_explained <- round(hka_ww_management$sdev^2/
+                         sum(hka_ww_management$sdev^2), 2) 
 var_explained
-# bspw. die erste HK erklaert 19% der Gesamtvarianz 
+# bspw. die erste HK erklaert 18% der Gesamtvarianz 
 
 # Visualisierung wie viel Gesamtvarianz die HK erklaeren
-qplot(c(1:20),var_explained, xlab = "Principal Component", 
+qplot(c(1:19),var_explained, xlab = "Principal Component", 
       ylab = "Variance Explained")
 
 # 
@@ -313,7 +319,7 @@ abline(v = 10, col = "red")
 abline(h = 0.812, col = "red")
 # mit diesem Dataframe in die Clusteranalyse 
 # bei einer Auswahl von 10 Hauptkomponenten 
-# vielleicht nur 9?
+
 new_waste_management <- as.data.frame(hka_ww_management$x[,1:10])
 new_waste_management
 
@@ -328,16 +334,19 @@ fa_waste_management <- factanal(waste_management_numeric,
                                 scores = "Bartlett",
                                 rotation = "none")
 fa_waste_management
-# bei 10 Faktoren und keiner Rotation sind es 47% Cumulative Var
+# bei 10 Faktoren und keiner Rotation sind es 46% Cumulative Var
 # aus den 30 Variablen wurden 5 Variablen (Faktoren) gebildet
 
 # Ergebnisse ausgeben lassen mit 2 Nachkommastellen und Faktorladung < 0.5 
 # kleinere Faktorladungen brauchen nicht angeschaut werden
 print(fa_waste_management, digits = 2, cutoff=0.5)
 
-fa_promax <- fa_rotation(waste_management_numeric, 10, "promax")
+fa_promax <- fa_rotation(waste_management_numeric, 5, "promax")
 fa_promax
 # Bei 10 Faktoren und Rotation Promax sind es 47% Cumulative Var
+
+fa_quartimax <- fa_rotation(waste_management_numeric, 5, "quartimax")
+fa_quartimax
 
 # Biplot fuer Faktor 1 und 2 
 biplot(y = fa_promax$loadings[,1:2], 
@@ -348,8 +357,8 @@ loadings <- t(as.matrix(fa_waste_management$loadings))
 corrplot(loadings, method = "circle")
 
 # Ergebnis Faktoranalyse: 
-# nur schlechte Interpretation der Faktoren moeglich
-# mit der Hauptkomponentenanalyse fortfahren 
+# Zu wenig Var in den neuen Spalten
+# somit weiter mit HKA
 
 #----------------------
 # Clusteranalyse: hierarchisches Verfahren nach hclust,dist,cutree = agglomerativ
@@ -371,10 +380,7 @@ for (i in 1:length(methods_dist)) {
 
 dev.off()
 
-all_distance(new_waste_management, "manhattan", "ward.D2", 8)
-
-#
-
+all_distance(new_waste_management, "manhattan", "ward.D2", 6)
 
 
 # Entscheidung feur Distanzberechnung nach "manhatten"
@@ -392,25 +398,21 @@ distance <- dist(scale(new_waste_management,
 h <- hclust(distance, method = "ward.D2")
 
 # fuer jede Boebachtung Clusterzugehoerigkeit angeben
-cl <- cutree(h, k = 8)
+cl <- cutree(h, k = 6)
 
-# Cluster an den Datensatz anfuegen
+
+# entfernen von den factor variablen in waste_management
+
+waste_management <- waste_management %>% 
+  mutate_at(vars(Inselgemeinde:Geologischer_Indikator), as.integer)
+str(waste_management)
+# Cluster an den Datensatz anfuegen fuer dist
 waste_management_dist <- waste_management
 waste_management_dist$cluster <- cl
 
 
-# Fuer excel in numeric umwandeln um zu erkennen ob stadt oder nicht
-
-waste_management_dist$Inselgemeinde <- 
-  as.numeric(waste_management_dist$Inselgemeinde)
-
-waste_management_dist$Kuestengemeinde <- 
-  as.numeric(waste_management_dist$Kuestengemeinde)
-
-waste_management_dist$Urbanisierungsgrad <- 
-  as.numeric(waste_management_dist$Urbanisierungsgrad)
-
 # Profiling mit Excel
+# dafuer neue spalten erstellt um die cluster besser zu interpretieren
 for (i in 2:8){
   waste_management_dist$cluster <- cutree(h, k = i)
   
@@ -452,16 +454,18 @@ waste_management_dist %>%
   group_by(cluster) %>% 
   summarise(anzahl = n())
 
-# Inselgemeinde hat genau 22 Eintraege wie Cluster 6
-# waste_management %>% 
-#   filter(cluster == 6) %>% 
-#   select(Inselgemeinde)
+# # hierarchische clusteranalyse diana
 
-# Cluster 6 und 7 entfernt 
-# waste_management_entfernt <- waste_management %>% 
-#   filter(cluster != 6 & cluster != 7) %>% 
-#   select(everything())
-waste_management
+# Distanzberechnung diana
+
+diana_dist <- diana(scale(waste_management_numeric), 
+                    metric = "euclidean", stand = F)
+
+c_diana <- cutree(diana_dist, k = 7)
+
+waste_management_diana <- waste_management
+waste_management_diana$cluster <- c_diana
+waste_management_diana
 
 
 # hierarchische clusteranalyse daisy
@@ -490,14 +494,14 @@ for (i in 1:length(metric_dist)) {
 
 dev.off()
 
-dia_dist <- daisy(waste_management_numeric, metric = "euclidean", stand = F)
+daisy_dist <- daisy(waste_management_numeric, metric = "euclidean", stand = F)
 
-dia_agnes <- agnes(dia_dist, diss = T, 
+daisy_agnes <- agnes(daisy_dist, diss = T, 
                    metric = "euclidean", 
                    stand = T, 
                    method = "ward")
 
-c_diasy <- cutree(dia_agnes, k = 9)
+c_diasy <- cutree(dia_agnes, k = 7)
 
 waste_management_daisy <- waste_management
 
@@ -506,15 +510,6 @@ waste_management_daisy$cluster <- c_diasy
 waste_management_daisy %>% 
   group_by(cluster) %>% 
   summarise(anzahl = n())
-
-waste_management_daisy$Inselgemeinde <- 
-  as.numeric(waste_management_daisy$Inselgemeinde)
-
-waste_management_daisy$Kuestengemeinde <- 
-  as.numeric(waste_management_daisy$Kuestengemeinde)
-
-waste_management_daisy$Urbanisierungsgrad <- 
-  as.numeric(waste_management_daisy$Urbanisierungsgrad)
 
 for (i in 2:9){
   waste_management_daisy$cluster <- cutree(dia_agnes, k = i)
@@ -550,19 +545,17 @@ write.csv2(df_profiling_daisy, file = "profiling_daisy.csv")
 #
    # k-means
 # 
-fviz_nbclust(new_waste_management, kmeans, method = "wss")
-
-
+fviz_nbclust(waste_management_numeric, kmeans, method = "wss")
 
 # optimale Anzahl an Clustern nach Lueckenstatistik
-gap_stat <- clusGap(new_waste_management,
+gap_stat <- clusGap(waste_management_numeric,
                     FUN = kmeans,
                     nstart = 25,
                     K.max = 20,
                     B = 50) # 500 is recommendet, but to long
-warnings()
+
 # perform clustering, B = 500 is recommended
-hcluster <- clusGap(new_waste_management, FUN = hcut, K.max = 20, B = 50)
+hcluster <- clusGap(waste_management_numeric, FUN = hcut, K.max = 20, B = 50)
 
 # extract results
 dat <- data.table(hcluster$Tab)
@@ -576,10 +569,8 @@ viz_gap <- ggplot(dat, aes(k, gap)) + geom_line() + geom_point(size = 3) +
   theme(plot.title = element_text(size = 16, hjust = 0.5, face = "bold"),
         axis.title = element_text(size = 12, face = "bold"))
 viz_gap
-# Optimal 4?
+# Optimal 5?
 
-# Plot
-fviz_gap_stat(gap_stat)
 
 k_erg <- data.frame(k = 1:20,
                     totss = 0,
@@ -596,8 +587,6 @@ for (i in 1:20) {
 
 k_erg
 
-km <- kmeans(scale(waste_management_numeric), centers = 4, nstart = 10)
-
 # Plot WithinSS
 plot(k_erg$k,
      k_erg$withinss,
@@ -612,52 +601,70 @@ plot(k_erg$k,
      xlab = "Anzahl Cluster",
      ylab = "Erklärte Varianz")
 
-# perform clustering, B = 500 is recommended
-# hcluster = clusGap(new_waste_management, FUN = hcut, K.max = 7, B = 500)
-# 
-# # extract results
-# dat <- data.table(hcluster$Tab)
-# dat[, k := .I]
-# 
-# # visualize gap statistic
-# viz_gap <- ggplot(dat, aes(k, gap)) + geom_line() + geom_point(size = 3) +
-#   geom_errorbar(aes(ymax = gap + SE.sim, ymin = gap - SE.sim), width = 0.25) +
-#   ggtitle("Clustering Results") +
-#   labs(x = "Number of Clusters", y = "Gap Statistic") +
-#   theme(plot.title = element_text(size = 16, hjust = 0.5, face = "bold"),
-#         axis.title = element_text(size = 12, face = "bold"))
-# viz_gap
-# 
-# km <- kmeans(scale(waste_management_numeric),
-#              centers = 4,
-#              nstart = 10,
-#              iter.max = 20)
+waste_management_kmeans <- waste_management
+for (i in 2:9){
+  km <- kmeans(scale(waste_management_numeric), 
+                                            centers = i, nstart = 10)
+  
+  cluster_kmeans <- km$cluster
+  
+  waste_management_kmeans$cluster <- cluster_kmeans
+  
+  df_profiling_km <- 
+    waste_management_kmeans %>% 
+    group_by(cluster) %>%
+    mutate(Inselgemeinde_count = sum(Inselgemeinde==1),
+           Kuestengemeinde_count = sum(Kuestengemeinde==1),
+           Urban_niedri = sum(Urbanisierungsgrad==1)/sum(Urbanisierungsgrad!=0),
+           Urban_mittel = sum(Urbanisierungsgrad==2)/sum(Urbanisierungsgrad!=0),
+           Urban_hoch = sum(Urbanisierungsgrad==3)/sum(Urbanisierungsgrad!=0),
+           Sueden = sum(Geologischer_Indikator==1)/sum(Geologischer_Indikator!=0),
+           Mitte = sum(Geologischer_Indikator==2)/sum(Geologischer_Indikator!=0),
+           Norden = sum(Geologischer_Indikator==3)/sum(Geologischer_Indikator!=0)) %>% 
+    summarize_all(mean)
+  
+  df_profiling_km$n_cluster <- i
+  df_profiling_km$size <- table(waste_management_kmeans$cluster)
+  
+  if (i == 2){
+    df_profiling_km_final <- df_profiling_km
+  } else {
+    df_profiling_km_final <- 
+      df_profiling_km_final %>% 
+      rows_append(df_profiling_km)
+  }
+}
+
+write.csv2(df_profiling_km_final, file = "profiling_km.csv")
+
 
 # zwischenschritt um cluster an normalen datensatz zu hängen
 waste_management_kmeans <- waste_management
+km <- kmeans(scale(waste_management_numeric), centers = 5, nstart = 10)
 cluster_kmeans <- km$cluster
 waste_management_kmeans$cluster <- cluster_kmeans
 
 waste_management_kmeans %>% 
   group_by(cluster) %>% 
   summarise_all(mean)
+waste_management_kmeans
 
-# k-medoids
+#
+#------------------------------------------------------------------------
+#
+
+# Entschieden für hclust nach der analyse in excel
+
+#
 #------------------------------------------------------------------------------
 # Profiling
 head(waste_management)
 
-
-# Cluster nach Verwendung vergleichen
-# describeBy(waste_management_dist[5:7], 
-#            group = waste_management_dist$cluster)
-
-
 # Verwendung betrachten
-describeBy(waste_management_daisy[26:29], 
-           group = waste_management_daisy$cluster)
+describeBy(waste_management_dist[26:29], 
+           group = waste_management_dist$cluster)
 
-waste_verwendung <- waste_management_daisy %>% 
+waste_verwendung <- waste_management_dist %>% 
   select(26:29, 37)
 
 plot_groups(waste_verwendung)
@@ -690,36 +697,41 @@ waste_geo <- waste_management_dist %>%
 
 plot_groups(waste_geo)
 
-pdf("mean_cluster.pdf", width = 8.5, height = 6)
-for (i in 1:ncol(waste_management_dist)) {
-  if (is.numeric(waste_management_dist[,i])) {
-    plot <- ggplot(waste_management_dist,
-                   aes(y = waste_management_dist[,i],
-                       x = cluster)) +
-      geom_bar(aes(fill = cluster),stat = "summary",position = "dodge",
-               fun = "mean") +
-      labs(y = names(waste_management_dist)[i])
-    
-    print(plot)
-  }
-}
+# Kosten
+describeBy(waste_management_dist[30:34],
+           group = waste_management_dist$cluster)
+
+waste_kosten <- waste_management_dist %>% 
+  select(32:34,37)
+
+plot_groups(waste_kosten)
+
+# Steuern
+describeBy(waste_management_dist[30:31],
+           group = waste_management_dist$cluster)
+
+waste_steuern <- waste_management_dist %>% 
+  select(30:31,37)
+
+plot_groups(waste_steuern)
+
+# Flaeche und Bevoelkerungsdichte
+describeBy(select(waste_management_dist, 5, 7),
+           group = waste_management_dist$cluster)
+
+waste_flaeche <- waste_management_dist %>% 
+  select(5,7,37)
+
+plot_groups(waste_flaeche)
+
+# Plots in einer PDF abspeichern
+pdf("auswertung_dist.pdf", width = 8.5, height = 6)
+  plot_groups(waste_kosten)
+  plot_groups(waste_abfaelle)
+  plot_groups(waste_verwendung)
+  plot_groups(waste_sort)
+  plot_groups(waste_steuern)
+  plot_groups(waste_flaeche)
 dev.off()
 
-waste_management_prof <- waste_management_numeric
-for (i in 2:8) {
-  waste_management_prof$cluster <- cutree(h,k = i)
-  waste_profiling <- 
-    waste_management_prof %>% 
-    group_by(cluster) %>% 
-    summarise(mean)
-  waste_profiling$ncluster <- i
-  waste_profiling$size <- table(waste_management_prof$cluster)
-  
-  if (i == 2) {
-    waste_profiling_final <- waste_profiling
-  } else {
-    waste_profiling_final <- waste_profiling_final %>% 
-      rows_append(waste_profiling)
-  }
-}
-
+# Fertig
